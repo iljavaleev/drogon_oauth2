@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <%c++
+    auto clients=@@.get<std::vector<Client>>("clients");
+  %>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>OAuth in Action: OAuth Authorization Server</title>
+
+    <!-- Bootstrap -->
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+	<style>
+	body {
+	  padding-top: 60px;
+	}
+	.navbar-inverse {
+		background-color: #322;
+	}
+	</style>
+  </head>
+  <body>
+
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="/"><span class="label label-danger">OAuth Authorization Server</span></a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+
+      <div class="jumbotron">
+		  <h2>Client information:</h2>
+      <%c++ for(auto client:clients){%>
+        <tr>
+          <td>{%iter.first%}</td>
+          <td><%c++ $$<<iter.second;%></td>
+        </tr>
+        <%c++}%>
+		  <ul>
+			  <li><b>client_id:</b> <code>{% client.client_id %}</code></li>
+			  <li><b>client_secret:</b> <code>{% client.client_secret %}</code></li>
+        <li><b>scope:</b> 
+        <{%c++ for(auto s in {% client.scope %})
+        {%><code>{% s %}</code><%c++}%>
+        </li>
+        <li><b>redirect_uri:</b> 
+          {% for ru in client.redirect_uris %}
+            <code>{{ ru }}</code>
+          {% endfor %}
+        </li>		    
+        <li><b>client_uri:</b> <code>{{ client.client_uri }}</code></li>
+        <li><b>client_id_created_at:</b> <code>{{ client.client_id_created_at }}</code></li>
+			  <li><b>client_id_expires_at:</b> <code>{{ client.client_id_expires_at }}</code></li>
+        <li><b>registration_access_token:</b> <code>{{ client.registration_access_token }}</code></li>
+        <li><b>registration_client_uri:</b> <code>{{ client.registration_client_uri }}</code></li>
+        <li><b>token_endpoint_auth_method:</b> <code>{{ client.token_endpoint_auth_method }}</code></li>
+        <li><b>grant_types:</b> 
+          {% for gt in client.grant_types %}
+            <code>{{ gt }}</code>
+          {% endfor %}
+        </li>
+        <li><b>response_types:</b> 
+          {% for rt in client.response_types %}
+            <code>{{ rt }}</code>
+          {% endfor %}
+        </li>
+			  <li><b>client_name:</b> <code>{{ client.client_name }}</code></li>
+		   </ul>
+		   {% endfor %}
+       <h2>Server information:</h2>
+       <ul>
+         <li><b>authorization_endpoint:</b> <code>{{ auth_server.authorization_endpoint }}</code></li>
+         <li><b>token_endpoint:</b> <code>{{ auth_server.token_endpoint }}</code></li>
+      </ul>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  </body>
+</html>
