@@ -77,6 +77,12 @@ ListParameters_tmp_stream<<iter;
 }
 	ListParameters_tmp_stream << "</body>\n";
 	ListParameters_tmp_stream << "</html>\n";
+ListParameters_tmp_stream<<"\n";
+ListParameters_tmp_stream<<"\n";
+ 
+  {
+	ListParameters_tmp_stream << " <% c++}\n";
+	ListParameters_tmp_stream << "%>\n";
 if(layoutName.empty())
 {
 std::string ret{std::move(ListParameters_tmp_stream.str())};
@@ -91,4 +97,4 @@ if(!str.empty() && str[str.length()-1] == '\n') str.resize(str.length()-1);
 data[""] = std::move(str);
 return templ->genText(data);
 }
-}
+}}

@@ -207,9 +207,9 @@ class Client
     void getRedirectUri(const drogon::orm::DbClientPtr &clientPtr,
                         const std::function<void(std::vector<RedirectUri>)> &rcb,
                         const drogon::orm::ExceptionCallback &ecb) const;
-    std::vector<Token> getToken(const drogon::orm::DbClientPtr &clientPtr) const;
+    Token getToken(const drogon::orm::DbClientPtr &clientPtr) const;
     void getToken(const drogon::orm::DbClientPtr &clientPtr,
-                  const std::function<void(std::vector<Token>)> &rcb,
+                  const std::function<void(Token)> &rcb,
                   const drogon::orm::ExceptionCallback &ecb) const;
   private:
     friend drogon::orm::Mapper<Client>;

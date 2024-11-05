@@ -61,6 +61,7 @@ CREATE TABLE token(
     client_id varchar(128),
     access_token bigint,
     refresh_token bigint,
+    UNIQUE (id, client_id),
     FOREIGN KEY (client_id) REFERENCES client (client_id) ON DELETE CASCADE
 );
 

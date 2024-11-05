@@ -51,7 +51,7 @@
                 "enable_reverse": true
             },
             {
-                "type": "has many",
+                "type": "has one",
                 "original_table_name": "client",
                 "original_table_alias": "client",
                 "original_key": "client_id",

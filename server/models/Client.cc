@@ -1689,7 +1689,7 @@ void Client::getRedirectUri(const DbClientPtr &clientPtr,
                }
                >> ecb;
 }
-std::vector<Token> Client::getToken(const DbClientPtr &clientPtr) const {
+Token Client::getToken(const DbClientPtr &clientPtr) const {
     static const std::string sql = "select * from token where client_id = $1";
     Result r(nullptr);
     {
@@ -1698,30 +1698,37 @@ std::vector<Token> Client::getToken(const DbClientPtr &clientPtr) const {
             [&r](const Result &result) { r = result; };
         binder.exec();
     }
-    std::vector<Token> ret;
-    ret.reserve(r.size());
-    for (auto const &row : r)
+    if (r.size() == 0)
     {
-        ret.emplace_back(Token(row));
+        throw UnexpectedRows("0 rows found");
     }
-    return ret;
+    else if (r.size() > 1)
+    {
+        throw UnexpectedRows("Found more than one row");
+    }
+    return Token(r[0]);
 }
 
 void Client::getToken(const DbClientPtr &clientPtr,
-                      const std::function<void(std::vector<Token>)> &rcb,
+                      const std::function<void(Token)> &rcb,
                       const ExceptionCallback &ecb) const
 {
     static const std::string sql = "select * from token where client_id = $1";
     *clientPtr << sql
                << *clientId_
-               >> [rcb = std::move(rcb)](const Result &r){
-                   std::vector<Token> ret;
-                   ret.reserve(r.size());
-                   for (auto const &row : r)
-                   {
-                       ret.emplace_back(Token(row));
-                   }
-                   rcb(ret);
+               >> [rcb = std::move(rcb), ecb](const Result &r){
+                    if (r.size() == 0)
+                    {
+                        ecb(UnexpectedRows("0 rows found"));
+                    }
+                    else if (r.size() > 1)
+                    {
+                        ecb(UnexpectedRows("Found more than one row"));
+                    }
+                    else
+                    {
+                        rcb(Token(r[0]));
+                    }
                }
                >> ecb;
 }
