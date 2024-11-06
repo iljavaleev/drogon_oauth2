@@ -164,7 +164,7 @@ class Request
         static const std::string sql="delete from " + tableName + " where request_id = $1";
         return sql;
     }
-    std::string sqlForInserting(bool &needSelection) const
+    std::string sqlForInserting(bool needSelection=false) const
     {
         std::string sql="insert into " + tableName + " (";
         size_t parametersCount = 0;

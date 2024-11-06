@@ -64,5 +64,6 @@
         "sstream": "cpp",
         "unordered_set": "cpp"
     },
-    "cmake.sourceDirectory": "/Users/ilavaleev/Dev/drogon_oauth2/server"
+    "cmake.sourceDirectory": "/Users/ilavaleev/Dev/drogon_oauth2/server",
+    "C_Cpp.errorSquiggles": "disabled"
 }

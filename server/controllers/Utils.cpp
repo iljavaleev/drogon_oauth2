@@ -86,3 +86,25 @@ Json::Value get_all_clients(const std::string& query)
     }
     return clients;    
 }
+
+
+std::unordered_set<std::string> get_scope(const std::string& scope)
+{
+    std::unordered_set<std::string> res;
+    std::istringstream iss(scope);
+    std::string s;
+    while (getline(iss, s, ' ')) 
+        res.insert(s);
+    return res;
+}
+
+
+std::string get_scope(const std::unordered_set<std::string>& scope)
+{
+    std::ostringstream ss;
+    for (const auto& s: scope)
+        ss << s << " ";
+    std::string res = ss.str();
+    res.pop_back();
+    return res;
+}

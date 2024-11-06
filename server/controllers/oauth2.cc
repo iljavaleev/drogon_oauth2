@@ -5,8 +5,12 @@
 
 #include <drogon/drogon.h>
 #include "models/Client.h"
+#include "models/RedirectUri.h"
+#include "models/ClientScope.h"
+#include "models/Request.h"
+#include <algorithm>
 
-using drogon_model::auth_server::Client;
+using namespace drogon_model::auth_server;
 
 void oauth2::idx(const HttpRequestPtr &req,
                  std::function<void (const HttpResponsePtr &)> &&callback)
@@ -33,7 +37,7 @@ void oauth2::idx(const HttpRequestPtr &req,
 
     HttpViewData data;
     drogon::HttpResponsePtr resp;
-    if (!req.get()->getParameters().contains(client_id))
+    if (!req.get()->getParameters().contains("client_id"))
     {
         data.insert("error", "Unknown client");
         resp = HttpResponse::newHttpViewResponse("Error.csp", data);
@@ -55,57 +59,73 @@ void oauth2::idx(const HttpRequestPtr &req,
         callback(resp);
     }
     
-    
-    std::string res;
-	
-    
-    std::vector r_uris = client->redirect_uris;
-    
-    if (!req.url_params.get("redirect_uri") || 
-        std::find(r_uris.begin(), r_uris.end(), 
-        std::string(req.url_params.get("redirect_uri"))) == r_uris.end())
+    auto uris = client.getRedirectUri(db);
+    auto client_red_iri = 
+        std::find_if(uris.begin(), uris.end(), [&](const RedirectUri& uri)
+        {
+            return uri.getValueOfUri() == redirect_uri;
+        }
+    );
+
+    if (!req.get()->getParameters().contains("redirect_uri") || 
+        client_red_iri == uris.end())
     {
-        res = env.render(error_temp, {{"error", "Invalid redirect URI"}});
-		auto page = crow::mustache::compile(res);
-		return page.render();
-    }   
-	
-	if (!req.url_params.get("scope"))
+        data.insert("error", "Invalid redirect URI");
+        resp = HttpResponse::newHttpViewResponse("Error.csp", data);
+        callback(resp);
+    }
+
+    if (!req.get()->getParameters().contains("scope"))
+    {
+        data.insert("error", "Scope not found");
+        resp = HttpResponse::newHttpViewResponse("Error.csp", data);
+        callback(resp);
+    }
+
+    std::vector<ClientScope> client_scopes_inst = client.getScope(db);   
+    std::unordered_set<std::string> client_scopes;
+    for (ClientScope s: client_scopes_inst)
+    {
+        client_scopes.insert(s.getValueOfScope());
+    }
+    client_scopes_inst.clear();
+    std::unordered_set<std::string> req_scopes = get_scope(scope);
+    
+    for (const auto& el: req_scopes)
 	{
-		res = env.render(error_temp, {{"error", "Scope not found"}});
-		auto page = crow::mustache::compile(res);
-		return page.render();
-	}
-	
-	auto scope = get_scope(req.url_params.get("scope"));
-	for (const auto& el: scope)
-	{
-		if(!client->scope.contains(el))
+		if(!client_scopes.contains(el))
 		{	
-			res = env.render(error_temp, {{"error", "invalid scope"}});
-			auto page = crow::mustache::compile(res);
-			return page.render();
+			data.insert("error", "Scope not found");
+            resp = HttpResponse::newHttpViewResponse("Error.csp", data);
+            callback(resp);
 		}
 	}
-	    
-	crow::query_string query = req.url_params;
-    const std::string reqid = gen_random(8);
+
+    std::string query = req->getQuery();
+    LOG_WARN << query;
+    const std::string reqid = drogon::utils::genRandomString(12);
+    Request request;
+    request.setQuery(query);
+    request.setRequestId(reqid);
+    db->execSqlAsync(request.sqlForInserting(),
+                    [](const drogon::orm::Result &result) 
+                    {
+                        LOG_WARN << "request created";
+                    },
+                    [](const drogon::orm::DrogonDbException &e) 
+                    {
+                        std::cerr << "error:" << e.base().what() << std::endl;
+                    });
+
     
-	Request request(reqid, req.raw_url);
-	request.create();
-	
-	std::vector<std::string> client_scope;
-	client_scope.insert(
-		client_scope.end(), 
-		client->scope.begin(), 
-		client->scope.end()
-	);
+    Json::Value render_scope(Json::arrayValue);
     
-	json render_json;
-	render_json["scope"] = client_scope;
-	render_json["reqid"] = reqid;
-	
-	res = env.render(appr_temp, render_json);
-	auto page = crow::mustache::compile(res);
-	return page.render();
+    for (auto s: req_scopes)
+    {
+        render_scope.append(s);
+    }
+    data.insert("scope", render_scope);
+    data.insert("reqid", reqid);
+    resp = HttpResponse::newHttpViewResponse("Approve.csp", data);
+    callback(resp);
 }
