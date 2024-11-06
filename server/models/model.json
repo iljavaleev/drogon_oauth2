@@ -1,0 +1,65 @@
+{
+    "rdbms": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "dbname": "auth_server",
+    "schema": "public",
+    "user": "postgres",
+    "password": "",
+    "tables": [],
+    "relationships": {
+        "enabled": true,
+        "items": [
+            {
+                "type": "has many",
+                "original_table_name": "client",
+                "original_table_alias": "client",
+                "original_key": "client_id",
+                "target_table_name": "client_grant_type",
+                "target_table_alias": "grantType",
+                "target_key": "client_id",
+                "enable_reverse": true
+            },
+            {
+                "type": "has many",
+                "original_table_name": "client",
+                "original_table_alias": "client",
+                "original_key": "client_id",
+                "target_table_name": "client_response_type",
+                "target_table_alias": "responseType",
+                "target_key": "client_id",
+                "enable_reverse": true
+            },
+            {
+                "type": "has many",
+                "original_table_name": "client",
+                "original_table_alias": "client",
+                "original_key": "client_id",
+                "target_table_name": "client_scope",
+                "target_table_alias": "scope",
+                "target_key": "client_id",
+                "enable_reverse": true
+            },
+            {
+                "type": "has many",
+                "original_table_name": "client",
+                "original_table_alias": "client",
+                "original_key": "client_id",
+                "target_table_name": "redirect_uri",
+                "target_table_alias": "redirectUri",
+                "target_key": "client_id",
+                "enable_reverse": true
+            },
+            {
+                "type": "has one",
+                "original_table_name": "client",
+                "original_table_alias": "client",
+                "original_key": "client_id",
+                "target_table_name": "token",
+                "target_table_alias": "token",
+                "target_key": "client_id",
+                "enable_reverse": true
+            }
+        ]
+    }
+}
