@@ -55,12 +55,14 @@ CREATE TABLE redirect_uri(
     FOREIGN KEY (client_id) REFERENCES client (client_id) ON DELETE CASCADE
 );
 
-
+-- refresh table
 CREATE TABLE token(
     id SERIAL PRIMARY KEY,
     client_id varchar(128),
-    access_token bigint,
-    refresh_token bigint,
+    access_token text,
+    refresh_token text,
+    access_token_expire text,
+    scope varchar(255),
     UNIQUE (id, client_id),
     FOREIGN KEY (client_id) REFERENCES client (client_id) ON DELETE CASCADE
 );
