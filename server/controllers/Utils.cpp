@@ -6,10 +6,12 @@
 #include "models/Client.h"
 #include "models/Token.h"
 #include "models/ClientGrantType.h"
+#include <jwt-cpp/jwt.h>
 
-using drogon_model::auth_server::Client;
-using drogon_model::auth_server::Token;
 
+using namespace drogon_model::auth_server;
+
+const std::string WORKDIR = std::getenv("WORKDIR");
 
 Json::Value get_all_clients(const std::string& query)
 
@@ -108,3 +110,81 @@ std::string get_scope(const std::unordered_set<std::string>& scope)
     res.pop_back();
     return res;
 }
+
+drogon::HttpResponsePtr send_error(
+    std::string&& message, drogon::HttpStatusCode code)
+{
+    Json::Value ret;
+    ret["error"] = std::move(message);
+    auto resp = drogon::HttpResponse::newHttpJsonResponse(ret);
+    resp->setStatusCode(code);
+    return resp;
+}
+
+std::string build_url(std::string base, Json::Value options)
+{
+    std::ostringstream url;
+    url << base << '?';
+    
+    auto keys = options.getMemberNames();
+    for (auto key: keys)
+        url << key<< '=' << options[key] << "&";
+
+    std::string uri = url.str();
+    uri.pop_back();
+    return uri;
+}
+
+bool is_subset_of_client_scope(const std::vector<ClientScope>& client_scope,
+    const std::unordered_set<std::string>& req_scope)
+{
+    std::unordered_set<std::string> scopes;
+    for (ClientScope s: client_scope)
+    {
+        scopes.insert(s.getValueOfScope());
+    }
+
+    for (const auto& el: req_scope)
+	{
+		if(!scopes.contains(el))
+		{	
+			return false;
+		}
+	}
+    return true;
+}
+
+
+std::vector<std::string> decode_client_credentials(
+    const std::string& code)
+{
+    std::string token = code.substr(code.find(' ') + 1);
+    size_t pos = token.find(':');
+    if(pos == token.npos)
+        return  {};
+    std::string id{token.substr(0, pos)}, 
+        secret{token.substr(pos+1)};
+    
+    std::string decode_token = drogon::utils::base64Decode(token); 
+    
+    return {
+        drogon::utils::base64Decode(id), 
+        drogon::utils::base64Decode(secret) 
+    };
+}
+
+
+jwt::verifier<jwt::default_clock, jwt::traits::kazuho_picojson> get_verifier()
+{
+    std::ifstream public_key(WORKDIR + "/public.pem");
+    std::stringstream buffer;
+
+    buffer << public_key.rdbuf();
+    std::string pbk{buffer.str()};
+    buffer.clear();
+
+    return jwt::verify().with_type("JWT").
+            allow_algorithm(
+        jwt::algorithm::rs256(pbk, "", "", ""));
+}
+
