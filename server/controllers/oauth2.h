@@ -14,8 +14,11 @@ class oauth2 : public drogon::HttpController<oauth2>
     ADD_METHOD_TO(oauth2::approve, "/approve", Post); 
     ADD_METHOD_TO(oauth2::token, "/token", Post); 
     ADD_METHOD_TO(oauth2::public_key, "/public_key", Post); 
-    ADD_METHOD_TO(oauth2::revoke_handler, "/revoke_handler", Post); 
-
+    ADD_METHOD_TO(oauth2::revoke_handler, "/revoke_handler", Post);
+    ADD_METHOD_TO(oauth2::register_handler, "/register", Post, "ClientMetadataMW"); 
+    ADD_METHOD_TO(oauth2::client_management_handler, 
+      "/register/{}", Get, Put, Delete, 
+      "AuthorizeConfigurationMW", "ClientMetadataMW");
 
     METHOD_LIST_END
     void idx(const HttpRequestPtr &req,
@@ -32,5 +35,11 @@ class oauth2 : public drogon::HttpController<oauth2>
     void public_key(const HttpRequestPtr &req,
               std::function<void (const HttpResponsePtr &)> &&callback);
     void revoke_handler(const HttpRequestPtr &req,
-              std::function<void (const HttpResponsePtr &)> &&callback);    
+              std::function<void (const HttpResponsePtr &)> &&callback);
+    void register_handler(const HttpRequestPtr &req,
+              std::function<void (const HttpResponsePtr &)> &&callback);
+    void client_management_handler(const HttpRequestPtr &req,
+              std::function<void (const HttpResponsePtr &)> &&callback, 
+              std::string &&client_id);
+        
 };

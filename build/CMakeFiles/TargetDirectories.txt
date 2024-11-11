@@ -1,0 +1,6 @@
+/Users/ilavaleev/Dev/drogon_oauth2/build/CMakeFiles/server.dir
+/Users/ilavaleev/Dev/drogon_oauth2/build/CMakeFiles/edit_cache.dir
+/Users/ilavaleev/Dev/drogon_oauth2/build/CMakeFiles/rebuild_cache.dir
+/Users/ilavaleev/Dev/drogon_oauth2/build/test/CMakeFiles/server_test.dir
+/Users/ilavaleev/Dev/drogon_oauth2/build/test/CMakeFiles/edit_cache.dir
+/Users/ilavaleev/Dev/drogon_oauth2/build/test/CMakeFiles/rebuild_cache.dir

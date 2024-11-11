@@ -22,7 +22,7 @@ CREATE TABLE client(
     client_id_created_at date,
     client_id_expires_at date,
     client_name varchar(128),
-    client_uri varchar(128),
+    client_uri varchar(128) UNIQUE,
     registration_client_uri text,
     registration_access_token text
 );

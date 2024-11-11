@@ -11,6 +11,8 @@
 #include "models/Code.h"
 #include "models/Token.h"
 #include "models/ProtectedResource.h"
+#include "models/ClientGrantType.h"
+#include "models/ClientResponseType.h"
 #include <algorithm>
 
 const std::string WORKDIR = std::getenv("WORKDIR");
@@ -610,4 +612,216 @@ void oauth2::revoke_handler(const HttpRequestPtr &req,
     
 	resp.setStatusCode = drogon::HttpStatusCode::k204NoContent;
     callback(resp);
+}
+
+void oauth2::register_handler(const HttpRequestPtr &req, 
+    std::function<void (const HttpResponsePtr &)> &&callback)
+{
+	std::shared_ptr<Json::Value> j_req = req->getJsonObject();
+	std::string client_id = drogon::utils::genRandomString(12);
+    (*j_req)["client_id"] = client_id;
+	(*j_req)["client_id_created_at"] = 
+		std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    (*j_req)["client_id_expires_at"] = 0;
+    (*j_req)["client_secret"] = drogon::utils::genRandomString(16);
+    (*j_req)["registration_access_token"] = drogon::utils::genRandomString(16);
+	(*j_req)["registration_client_uri"] = std::format(
+		"http://{}:{}/register/{}", 
+		std::getenv("SERVER"), 
+		std::getenv("SERVER_PORT"), 
+		new_client.client_id);
+	
+    Json::Value j_req_copy(*j_req);
+
+    drogon::orm::DbClientPtr db = drogon::app().getDbClient("default");
+    drogon::orm::Mapper<Client> client_mapper(db);
+    {
+        drogon::orm::Mapper<ClientScope> scope_mapper(db);
+        ClientScope scope;
+        scope.setClientId(client_id);
+        scope.setScope(j_req_copy["scope"]);
+        try
+        {
+            scope_mapper.insert(scope);
+        }
+        catch(const std::exception& e)
+        {
+           LOG_WARN << e.what();
+        }
+        j_req_copy.removeMember("scope");
+    }
+    {
+        drogon::orm::Mapper<ClientGrantType> grant_type_mapper(db);
+        ClientGrantType gt;
+        gt.setClientId(client_id);
+        
+        j_req_copy["grant_types"].isString() ? 
+            gt.setGrantType(j_req_copy["grant_types"]) : 
+                gt.setGrantType(j_req_copy["grant_types"][0]);
+        try
+        {
+            grant_type_mapper.insert(gt);
+        }
+        catch(const std::exception& e)
+        {
+           LOG_WARN << e.what();
+        }
+        j_req_copy.removeMember("grant_types");
+    }   
+    {
+        drogon::orm::Mapper<ClientResponseType> response_type_mapper(db);
+        ClientResponseType rt;
+        rt.setClientId(client_id);
+        j_req_copy["response_types"].isString() ? 
+            rt.setResponseType(j_req_copy["response_types"]) : 
+                rt.setResponseType(j_req_copy["response_types"][0]);
+        try
+        {
+           response_type_mapper.insert(rt);
+        }
+        catch(const std::exception& e)
+        {
+           LOG_WARN << e.what();
+        }
+        j_req_copy.removeMember("response_types");
+    }
+    {
+        drogon::orm::Mapper<RedirectUri> redirect_uri_mapper(db);
+        RedirectUri ru;
+        ru.setClientId(client_id);
+        if (j_req_copy["redirect_uris"].isString())
+        {
+            ru.setResponseType(j_req_copy["redirect_uris"]);
+            try
+            {
+                redirect_uri_mapper.insert(ru);
+            }
+            catch(const std::exception& e)
+            {
+                LOG_WARN << e.what();
+            }
+        } 
+        else
+        {
+            for (auto uri: j_req_copy["redirect_uris"])
+            {
+                ru.setResponseType(uri);
+                try
+                {
+                    redirect_uri_mapper.insert(ru);
+                }
+                catch(const std::exception& e)
+                {
+                    LOG_WARN << e.what();
+                }
+            }
+        }
+        j_req_copy.removeMember("redirect_uris");
+    }
+    drogon::orm::DbClientPtr db = drogon::app().getDbClient("default");
+    drogon::orm::Mapper<Client> client_mapper(db);
+    Client new_client(j_req_copy);
+    
+    try
+    {
+        client_mapper.insert(new_client);
+    }
+    catch(const std::exception& e)
+    {
+        LOG_WARN << e.what();
+    }
+    
+    auto resp = HttpResponse::newHttpJsonResponse(*j_req);
+    resp->setStatusCode(drogon::HttpStatusCode::k201Created);
+	callback(resp);
+}
+
+void oauth2::client_management_handler(const HttpRequestPtr &req,
+              std::function<void (const HttpResponsePtr &)> &&callback, 
+              std::string &&client_id)
+{
+	std::shared_ptr<Json::Value> body = req->getJsonObject();
+    drogon::orm::DbClientPtr db = drogon::app().getDbClient("default");
+    drogon::orm::Mapper<drogon_model::auth_server::Client> client_mapper(db);
+	if (req->getMethod() == drogon::HttpMethod::Get)
+	{
+        Json::Value client = (*body)["client"];
+		client["client_secret"] = drogon::utils::genRandomString(12);
+		client["registration_access_token"] = drogon::utils::genRandomString(16);
+		Client new_client(client);
+        try
+        {
+            client_mapper.insert(new_client);
+        }
+        catch(const std::exception& e)
+        {
+            LOG_WARN << e.what();
+        }
+		
+		auto resp = HttpResponse::newHttpJsonResponse(client);
+        callback(resp);
+	}
+	else if (req->getMethod() == drogon::HttpMethod::Put)
+	{
+
+		Json::Value client = (*body)["client"];
+        (*body).removeMember("client");
+         Client new_client(client);
+        
+        bool client_id_varif = 
+            ((*body).find("client_id") != (*body).end()) && 
+            (body["client_id"] == client_id);
+		bool client_secret_varif = 
+            ((*body).find("client_secret") != (*body).end()) && 
+            (body["client_secret"] == client.client_secret);
+		
+		if (!(client_id_varif && client_secret_varif))
+		{
+			LOG_WARN << "PUT; client varification error";
+			send_error("invalid_client_metadata", 
+                drogon::HttpStatusCode::k400BadRequest);
+		}
+
+		Json::Value result_client;
+		// check fields exists
+        result_client["token_endpoint_auth_method"] = 
+			 (*body)["token_endpoint_auth_method"];
+        result_client["redirect_uris"] = (*body)["redirect_uris"];
+		result_client["client_uri"] = (*body)["client_uri"];
+		result_client["scope"] = (*body)["scope"];
+		result_client["grant_types"] = (*body)["grant_types"];
+		result_client["response_types"] = (*body)["response_types"];
+		result_client["client_name"] = (*body)["client_name"];
+		
+		new_client.updateByJson(result_client);
+        try
+        {
+            client_mapper.update(new_client);
+        }
+        catch(const std::exception& e)
+        {
+            LOG_WARN << e.what();
+        }
+
+		auto resp = HttpResponse::newHttpJsonResponse(client);
+        callback(resp);
+	}
+	else if (req->getMethod() == drogon::HttpMethod::Delete)
+	{
+        Json::Value client = (*body)["client"];
+        (*body).removeMember("client");
+        drogon::orm::Mapper<drogon_model::auth_server::Token> token_mapper(db);
+		try
+		{
+			token_mapper.deleteBy();
+            client_mapper.deleteByPrimaryKey(client_id);
+		}
+		catch(const std::exception& e)
+		{
+			LOG_WARN << e.what();
+		}
+		auto resp = HttpResponse::newHttpJsonResponse(client);
+        resp->setStatusCode(drogon::HttpStatusCode::k204NoContent);
+        callback(resp);
+	}
 }
